@@ -13,8 +13,10 @@ with schedule as (
         *,
         extract(year from game_date) as season
     from {{ ref('mlb_stg_schedule') }}
-    where game_status = 'final'
-       or game_date = current_date('America/New_York')
+    where 
+        --game_status = 'final'
+       --or 
+       game_date = current_date('America/New_York')
 ),
 
 game_results as (
@@ -143,7 +145,7 @@ home_sp as (
         prest.is_extra_rest                             as home_sp_is_extra_rest,
         prest.is_long_layoff                            as home_sp_is_long_layoff
     from schedule s
-    join game_starters gs
+    left join game_starters gs
         on s.game_id = gs.game_id
         and s.home_team_id = gs.team_id
     left join pitcher_rolling pr
@@ -185,7 +187,7 @@ away_sp as (
         prest.is_extra_rest                             as away_sp_is_extra_rest,
         prest.is_long_layoff                            as away_sp_is_long_layoff
     from schedule s
-    join game_starters gs
+    left join game_starters gs
         on s.game_id = gs.game_id
         and s.away_team_id = gs.team_id
     left join pitcher_rolling pr
