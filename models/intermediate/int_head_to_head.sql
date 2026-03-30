@@ -2,22 +2,50 @@ with game_scores as (
     select * from {{ ref('int_game_scores') }}
 ),
 
--- Only completed games, direction-neutral pairing
-all_matchups as (
+-- Last 5 matchups this season (pre-aggregated separately)
+last5 as (
     select
-        least(home_team_id, away_team_id)    as team_a,
-        greatest(home_team_id, away_team_id) as team_b,
-        game_date,
-        case
-            when home_team_id = least(home_team_id, away_team_id)
-            then case when home_points > away_points then 1 else 0 end
-            else case when away_points > home_points then 1 else 0 end
-        end as team_a_win
-    from game_scores
-    where home_points is not null
-        and home_points > 0
-)
+        team_id,
+        opponent_id,
+        season,
+        sum(win) as last5_wins,
+        count(*) as last5_games
+    from (
+        select
+            team_id,
+            opponent_id,
+            season,
+            win,
+            row_number() over (
+                partition by team_id, opponent_id, season
+                order by game_date desc
+            ) as rn
+        from matchups
+    )
+    where rn <= 5
+    group by 1, 2, 3
+),
 
+aggregated as (
+    select
+        m.team_id,
+        m.opponent_id,
+        m.season,
+        count(*)                                        as games,
+        sum(m.win)                                      as wins,
+        round(avg(m.team_runs), 2)                      as avg_runs_scored,
+        round(avg(m.opp_runs), 2)                       as avg_runs_allowed,
+        round(avg(m.total_runs), 2)                     as avg_total_runs,
+        countif(m.extra_innings)                        as extra_inning_games,
+        l5.last5_wins,
+        l5.last5_games
+    from matchups m
+    left join last5 l5
+        on m.team_id = l5.team_id
+        and m.opponent_id = l5.opponent_id
+        and m.season = l5.season
+    group by 1, 2, 3, 9, 10
+),
 select
     team_a,
     team_b,
