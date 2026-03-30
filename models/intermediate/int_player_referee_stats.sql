@@ -43,7 +43,8 @@ JOIN `project-71e6f4ed-bf24-4c0f-bb0.marts.mart_player_summary` ps
     AND prs.team_id = ps.team_id
 JOIN `project-71e6f4ed-bf24-4c0f-bb0.seeds.dim_referees` dr
     ON CAST(prs.referee_id AS INT64) = dr.referee_id
-WHERE prs.games_with_referee >= 5
+WHERE prs.games_with_referee >= 3
     AND ps.pts_season_avg >= 15
     AND ABS(prs.avg_points - ps.pts_season_avg) >= 3
+
 ORDER BY pts_diff_vs_season_avg DESC
