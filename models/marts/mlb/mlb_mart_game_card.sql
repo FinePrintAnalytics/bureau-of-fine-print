@@ -184,6 +184,13 @@ odds as (
     group by game_id
 ),
 
+-- Latest game_date per pitcher in rolling stats
+pitcher_rolling_latest as (
+    select player_id, game_id
+    from {{ ref('mlb_int_pitcher_rolling') }}
+    qualify row_number() over (partition by player_id order by game_date desc) = 1
+),
+
 -- assemble home and away SP per game
 home_sp as (
     select
@@ -216,13 +223,11 @@ home_sp as (
     left join game_starters gs
         on s.game_id = gs.game_id
         and s.home_team_id = gs.team_id
+    left join pitcher_rolling_latest prl
+        on gs.sp_player_id = prl.player_id
     left join pitcher_rolling pr
         on gs.sp_player_id = pr.player_id
-        and pr.game_date = (
-            select max(game_date)
-            from {{ ref('mlb_int_pitcher_rolling') }}
-            where player_id = gs.sp_player_id
-        )
+        and pr.game_id = prl.game_id
     left join starter_length sl
         on gs.sp_player_id = sl.player_id
         and s.season = sl.season
@@ -262,13 +267,11 @@ away_sp as (
     left join game_starters gs
         on s.game_id = gs.game_id
         and s.away_team_id = gs.team_id
+    left join pitcher_rolling_latest prl
+        on gs.sp_player_id = prl.player_id
     left join pitcher_rolling pr
         on gs.sp_player_id = pr.player_id
-        and pr.game_date = (
-            select max(game_date)
-            from {{ ref('mlb_int_pitcher_rolling') }}
-            where player_id = gs.sp_player_id
-        )
+        and pr.game_id = prl.game_id
     left join starter_length sl
         on gs.sp_player_id = sl.player_id
         and s.season = sl.season
