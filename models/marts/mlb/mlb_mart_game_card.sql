@@ -23,8 +23,9 @@ game_results as (
     select * from {{ ref('mlb_stg_game_results') }}
 ),
 
--- identify starters per game from pitcher logs
+-- For today's games: use lineups table (probable pitcher)
 game_starters as (
+    -- Historical: from pitcher logs
     select
         game_id,
         team_id,
@@ -40,6 +41,32 @@ game_starters as (
         h                                               as sp_h
     from {{ ref('mlb_stg_game_pitcher_logs') }}
     where is_starter = true
+
+    union all
+
+    -- Today's upcoming games: from lineups (probable pitcher)
+    select
+        game_id,
+        team_id,
+        team_abbr,
+        player_id                                       as sp_player_id,
+        player_name                                     as sp_name,
+        null                                            as sp_throws,
+        null                                            as sp_ip_outs,
+        null                                            as sp_ip,
+        null                                            as sp_er,
+        null                                            as sp_so,
+        null                                            as sp_bb,
+        null                                            as sp_h
+    from {{ ref('mlb_stg_lineups') }}
+    where position = 'SP'
+      and game_date = current_date('America/New_York')
+      -- exclude games already in pitcher logs
+      and game_id not in (
+          select distinct game_id
+          from {{ ref('mlb_stg_game_pitcher_logs') }}
+          where is_starter = true
+      )
 ),
 
 -- rolling pitcher stats entering each game
@@ -191,7 +218,11 @@ home_sp as (
         and s.home_team_id = gs.team_id
     left join pitcher_rolling pr
         on gs.sp_player_id = pr.player_id
-        and gs.game_id = pr.game_id
+        and pr.game_date = (
+            select max(game_date)
+            from {{ ref('mlb_int_pitcher_rolling') }}
+            where player_id = gs.sp_player_id
+        )
     left join starter_length sl
         on gs.sp_player_id = sl.player_id
         and s.season = sl.season
@@ -233,7 +264,11 @@ away_sp as (
         and s.away_team_id = gs.team_id
     left join pitcher_rolling pr
         on gs.sp_player_id = pr.player_id
-        and gs.game_id = pr.game_id
+        and pr.game_date = (
+            select max(game_date)
+            from {{ ref('mlb_int_pitcher_rolling') }}
+            where player_id = gs.sp_player_id
+        )
     left join starter_length sl
         on gs.sp_player_id = sl.player_id
         and s.season = sl.season
