@@ -112,8 +112,49 @@ h2h as (
 
 -- odds
 odds as (
-    select * from `project-71e6f4ed-bf24-4c0f-bb0.mlb_raw.odds`
-    where snapshot_type = 'closing'
+    select game_id,
+        coalesce(
+            max(case when snapshot_type = 'closing' then home_ml end),
+            max(case when snapshot_type = 'opening' then home_ml end)
+        ) as home_ml,
+        coalesce(
+            max(case when snapshot_type = 'closing' then away_ml end),
+            max(case when snapshot_type = 'opening' then away_ml end)
+        ) as away_ml,
+        coalesce(
+            max(case when snapshot_type = 'closing' then home_runline end),
+            max(case when snapshot_type = 'opening' then home_runline end)
+        ) as home_runline,
+        coalesce(
+            max(case when snapshot_type = 'closing' then home_runline_price end),
+            max(case when snapshot_type = 'opening' then home_runline_price end)
+        ) as home_runline_price,
+        coalesce(
+            max(case when snapshot_type = 'closing' then away_runline end),
+            max(case when snapshot_type = 'opening' then away_runline end)
+        ) as away_runline,
+        coalesce(
+            max(case when snapshot_type = 'closing' then away_runline_price end),
+            max(case when snapshot_type = 'opening' then away_runline_price end)
+        ) as away_runline_price,
+        coalesce(
+            max(case when snapshot_type = 'closing' then total_line end),
+            max(case when snapshot_type = 'opening' then total_line end)
+        ) as total_line,
+        coalesce(
+            max(case when snapshot_type = 'closing' then over_price end),
+            max(case when snapshot_type = 'opening' then over_price end)
+        ) as over_price,
+        coalesce(
+            max(case when snapshot_type = 'closing' then under_price end),
+            max(case when snapshot_type = 'opening' then under_price end)
+        ) as under_price,
+        coalesce(
+            max(case when snapshot_type = 'closing' then bookmaker end),
+            max(case when snapshot_type = 'opening' then bookmaker end)
+        ) as bookmaker
+    from `project-71e6f4ed-bf24-4c0f-bb0.mlb_raw.odds`
+    group by game_id
 ),
 
 -- assemble home and away SP per game
