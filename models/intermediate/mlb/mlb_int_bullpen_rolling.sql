@@ -13,11 +13,20 @@ with pitcher_logs as (
 
 game_dates as (
     select distinct
-        team_id,
+        home_team_id    as team_id,
         game_date,
         game_id,
         extract(year from game_date) as season
-    from {{ ref('mlb_stg_game_pitcher_logs') }}
+    from {{ ref('mlb_stg_schedule') }}
+
+    union all
+
+    select distinct
+        away_team_id    as team_id,
+        game_date,
+        game_id,
+        extract(year from game_date) as season
+    from {{ ref('mlb_stg_schedule') }}
 ),
 
 -- Daily bullpen usage per team
