@@ -104,7 +104,15 @@ bullpen as (
 
 -- park factors
 parks as (
-    select * from {{ ref('mlb_int_park_factors') }}
+    select p.*
+    from {{ ref('mlb_int_park_factors') }} p
+    inner join (
+        select venue_id, max(park_factor_season) as max_season
+        from {{ ref('mlb_int_park_factors') }}
+        group by venue_id
+    ) latest
+        on p.venue_id = latest.venue_id
+        and p.park_factor_season = latest.max_season
 ),
 
 -- weather
@@ -514,11 +522,6 @@ final as (
         and s.game_id = abp.game_id
     left join parks p
         on s.venue_id = p.venue_id
-        and p.park_factor_season = (
-            select max(park_factor_season)
-            from {{ ref('mlb_int_park_factors') }}
-            where venue_id = s.venue_id
-        )
     left join weather w
         on s.game_id = w.game_id
     left join ump_assignments ua
