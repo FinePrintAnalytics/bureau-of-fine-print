@@ -514,7 +514,11 @@ final as (
         and s.game_id = abp.game_id
     left join parks p
         on s.venue_id = p.venue_id
-        and s.season = p.park_factor_season
+        and p.park_factor_season = (
+            select max(park_factor_season)
+            from {{ ref('mlb_int_park_factors') }}
+            where venue_id = s.venue_id
+        )
     left join weather w
         on s.game_id = w.game_id
     left join ump_assignments ua
