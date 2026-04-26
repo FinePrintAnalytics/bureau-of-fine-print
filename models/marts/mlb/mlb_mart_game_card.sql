@@ -74,9 +74,14 @@ pitcher_rolling as (
     select * from {{ ref('mlb_int_pitcher_rolling') }}
 ),
 
--- starter length / durability
+-- starter length / durability — deduplicated to one row per pitcher per season
+-- picks row with most starts when pitcher has multiple team rows (e.g. trades)
 starter_length as (
     select * from {{ ref('mlb_int_starter_length') }}
+    qualify row_number() over (
+        partition by player_id, season
+        order by starts desc
+    ) = 1
 ),
 
 -- rest splits
@@ -441,7 +446,7 @@ final as (
         w.total_weather_impact,
         w.weather_narrative,
 
-        -- park x temperature interaction (DS audit: amplifies when both present)
+        -- park x temperature interaction
         case
             when p.is_dome then 0
             when p.is_coors and w.temp_f >= 75 then 1.0
@@ -484,7 +489,7 @@ final as (
         h2h.series_dominance                            as h2h_dominance,
         h2h.games                                       as h2h_games,
 
-        -- SP x bullpen joint vulnerability flag (DS audit: non-additive compounding effect)
+        -- SP x bullpen joint vulnerability flag
         case
             when (hsp.home_sp_era_trend = 'trending_worse' or hsp.home_sp_durability = 'short_starter')
                  and hbp.bp_era_signal = 'tired'
