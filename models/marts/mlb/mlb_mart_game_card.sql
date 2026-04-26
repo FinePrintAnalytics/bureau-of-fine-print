@@ -14,8 +14,8 @@ with schedule as (
         extract(year from game_date) as season
     from {{ ref('mlb_stg_schedule') }}
     where 
-        --game_status = 'final'
-       --or 
+       game_status = 'final'
+       or 
        game_date = current_date('America/New_York')
 ),
 
