@@ -1,3 +1,5 @@
+{{ config(materialized='view') }}
+
 WITH current_season AS (
     SELECT MAX(season) AS season
     FROM {{ ref('stg_games') }}
@@ -36,6 +38,7 @@ current_rows AS (
         ON ps.game_id = g.game_id
     WHERE g.season = (SELECT season FROM current_season)
       AND ps.minutes_played > 0
+      AND ps.player_name IS NOT NULL
 ),
 
 -- a player belongs to the team he most recently played for
@@ -56,7 +59,19 @@ current_player AS (
     FROM current_rows cr
     INNER JOIN latest_team lt
         ON cr.player_key = lt.player_key AND cr.team_id = lt.team_id
+    WHERE cr.player_key IS NOT NULL
     GROUP BY cr.player_key, cr.team_id
+),
+
+-- Players listed Out or Doubtful today are left out of today's rating
+out_today AS (
+    SELECT DISTINCT
+        i.team_id,
+        INITCAP(`project-71e6f4ed-bf24-4c0f-bb0.marts.normalize_player_name`(i.player_name)) AS player_key
+    FROM {{ ref('stg_injuries') }} i
+    WHERE i.game_date = CURRENT_DATE('America/New_York')
+      AND i.status IN ('Out', 'Doubtful')
+      AND i.player_name IS NOT NULL
 ),
 
 lg AS (
@@ -79,6 +94,9 @@ player_blend AS (
     CROSS JOIN lg
     LEFT JOIN {{ ref('int_player_prior') }} pp
         ON cp.player_key = pp.player_key
+    LEFT JOIN out_today o
+        ON cp.team_id = o.team_id AND cp.player_key = o.player_key
+    WHERE o.player_key IS NULL
 ),
 
 team_rating AS (
